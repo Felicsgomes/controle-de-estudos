@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meu Controle de Estudos</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="theme.js"></script>
+</head>
+<body>
+
+    <div class="theme-controls">
+        <button id="themeToggleBtn" class="theme-toggle-btn" onclick="alternarTema()">🌙</button>
+        <input type="color" id="accentColorPicker" value="#29c5ff" onchange="mudarCorDestaque(this.value)" title="Escolher cor de destaque">
+    </div>
+
+    <aside class="sidebar">
+        <div class="sidebar-header">Área do Concurseiro</div>
+        <ul class="menu" id="menuList">
+            <li class="active" onclick="showTab('dashboard', this)">Total / Visão Geral</li>
+            <li onclick="showTab('perfil', this)">Perfil / Estatísticas</li>
+            <li onclick="showTab('edital', this)">Meu Edital / Matérias</li>
+            <li onclick="showTab('registrar', this)">Registrar Estudo</li>
+            <li onclick="logout()" style="color: #ff8a9b;">Sair</li>
+        </ul>
+    </aside>
+
+    <main class="content">
+
+        <section id="dashboard" class="section active">
+            <h1>Visão Geral dos Estudos</h1>
+            <div class="grid-cards">
+                <div class="card">
+                    <h3>Total de Horas</h3>
+                    <div class="value" id="totalHours">0h</div>
+                </div>
+                <div class="card">
+                    <h3>Questões Totais</h3>
+                    <div class="value" id="totalQuestions">0</div>
+                </div>
+                <div class="card">
+                    <h3>Acertos Totais</h3>
+                    <div class="value text-success" id="totalCorrect">0</div>
+                </div>
+                <div class="card">
+                    <h3>Precisão Geral</h3>
+                    <div class="value text-primary" id="overallAccuracy">0%</div>
+                </div>
+            </div>
+
+            <div class="subject-box">
+                <div class="calendar-header">
+                    <button class="btn-nav" onclick="changeMonth(-1)">&#10094; Anterior</button>
+                    <h2 id="calendarMonthYear" style="margin-bottom: 0;">Mês Ano</h2>
+                    <button class="btn-nav" onclick="changeMonth(1)">Próximo &#10095;</button>
+                </div>
+
+                <div class="heatmap-legend">
+                    <span>Menos</span>
+                    <div class="legend-box heat-0"></div>
+                    <div class="legend-box heat-1"></div>
+                    <div class="legend-box heat-2"></div>
+                    <div class="legend-box heat-3"></div>
+                    <div class="legend-box heat-4"></div>
+                    <span>Mais Horas</span>
+                </div>
+
+                <div class="calendar-grid" id="calendarGrid">
+                    </div>
+            </div>
+
+            <h2>Ritmo de Estudo (Últimos 7 dias)</h2>
+            <div class="subject-box" style="height: 300px; margin-bottom: 30px;">
+                <canvas id="studyChart"></canvas>
+            </div>
+
+            <h2>Desempenho Geral por Matéria</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Matéria</th>
+                        <th>Horas</th>
+                        <th>Questões (Feitas / Acertos)</th>
+                        <th>Aproveitamento (%)</th>
+                    </tr>
+                </thead>
+                <tbody id="progressTableBody">
+                    </tbody>
+            </table>
+        </section>
+
+        <section id="perfil" class="section">
+            <h1>Meu Perfil e Desempenho Detalhado</h1>
+            <div class="grid-cards" style="margin-bottom: 20px;">
+                <div class="card">
+                    <h3>Edital Concluído</h3>
+                    <div class="value" id="profilePercentageDone">0%</div>
+                </div>
+            </div>
+            <div class="subject-box">
+                <h2>Filtro de Desempenho (Matéria > Assunto)</h2>
+                <div id="detailedProfileStats"></div>
+            </div>
+        </section>
+
+        <section id="edital" class="section">
+            <h1>Gerenciar Edital</h1>
+            <div class="subject-box">
+                <h2>1. Adicionar Nova Matéria</h2>
+                <div class="form-group">
+                    <input type="text" id="newSubjectName" placeholder="Ex: Banco de Dados, Português, SQL..." onkeypress="if(event.key === 'Enter') addSubject()">
+                </div>
+                <button onclick="addSubject()">Adicionar Matéria</button>
+            </div>
+            <div class="subject-box">
+                <h2>2. Estrutura do Edital (Matérias e Assuntos)</h2>
+                <div id="editalStructure"></div>
+            </div>
+        </section>
+
+        <section id="registrar" class="section">
+            <h1>Registrar Sessão de Estudo</h1>
+            <div class="subject-box">
+
+                <div class="form-group">
+                    <label for="studyDate">1. Data do Estudo</label>
+                    <input type="date" id="studyDate">
+                </div>
+
+                <div class="form-group">
+                    <label for="selectSubject">2. Selecione a Matéria</label>
+                    <select id="selectSubject" onchange="updateTopicSelect()">
+                        <option value="">-- Escolha a matéria primeiro --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="selectTopic">3. Selecione o Assunto / Tópico</label>
+                    <select id="selectTopic">
+                        <option value="">-- Escolha o assunto --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="studyHours">4. Tempo Estudado (em horas)</label>
+                    <input type="number" id="studyHours" step="0.5" min="0" placeholder="Ex: 1.5 para 1h30min" onkeypress="if(event.key === 'Enter') registerStudy()">
+                </div>
+                <div style="display: flex; gap: 15px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label for="studyQuestions">Questões Resolvidas (Total)</label>
+                        <input type="number" id="studyQuestions" min="0" placeholder="Total de questões" onkeypress="if(event.key === 'Enter') registerStudy()">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label for="correctQuestions">Questões Acertadas</label>
+                        <input type="number" id="correctQuestions" min="0" placeholder="Quantas você acertou?" onkeypress="if(event.key === 'Enter') registerStudy()">
+                    </div>
+                </div>
+                <button onclick="registerStudy()">Salvar Registro de Estudo</button>
+            </div>
+        </section>
+
+    </main>
+
+    <script src="script.js" defer></script>
+</body>
+</html>

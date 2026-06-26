@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Controle de Estudos</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="theme.js"></script>
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="theme-controls">
+        <button id="themeToggleBtn" class="theme-toggle-btn" onclick="alternarTema()">🌙</button>
+        <input type="color" id="accentColorPicker" value="#29c5ff" onchange="mudarCorDestaque(this.value)" title="Escolher cor de destaque">
+    </div>
+
+    <div class="login-box">
+        <h1 id="formTitle">Entrar no Controle de Estudos</h1>
+        <p id="errorMsg"></p>
+
+        <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" placeholder="seuemail@exemplo.com">
+        </div>
+        <div class="form-group">
+            <label for="senha">Senha</label>
+            <input type="password" id="senha" placeholder="Sua senha">
+        </div>
+
+        <button id="actionBtn" onclick="fazerLogin()">Entrar</button>
+
+        <p class="toggle-text">
+            <span id="toggleQuestion">Ainda não tem conta?</span>
+            <a id="toggleLink" onclick="alternarModo()">Criar conta</a>
+        </p>
+    </div>
+
+    <script>
+        let modoCadastro = false;
+
+        function alternarModo() {
+            modoCadastro = !modoCadastro;
+            document.getElementById('errorMsg').style.display = 'none';
+
+            if (modoCadastro) {
+                document.getElementById('formTitle').innerText = 'Criar Conta';
+                document.getElementById('actionBtn').innerText = 'Cadastrar';
+                document.getElementById('actionBtn').setAttribute('onclick', 'fazerCadastro()');
+                document.getElementById('toggleQuestion').innerText = 'Já tem conta?';
+                document.getElementById('toggleLink').innerText = 'Entrar';
+            } else {
+                document.getElementById('formTitle').innerText = 'Entrar no Controle de Estudos';
+                document.getElementById('actionBtn').innerText = 'Entrar';
+                document.getElementById('actionBtn').setAttribute('onclick', 'fazerLogin()');
+                document.getElementById('toggleQuestion').innerText = 'Ainda não tem conta?';
+                document.getElementById('toggleLink').innerText = 'Criar conta';
+            }
+        }
+
+        function mostrarErro(msg) {
+            const el = document.getElementById('errorMsg');
+            el.innerText = msg;
+            el.style.display = 'block';
+        }
+
+        function traduzirErro(code) {
+            const erros = {
+                'auth/invalid-email': 'Email inválido.',
+                'auth/user-not-found': 'Usuário não encontrado.',
+                'auth/wrong-password': 'Senha incorreta.',
+                'auth/invalid-credential': 'Email ou senha incorretos.',
+                'auth/email-already-in-use': 'Esse email já está cadastrado.',
+                'auth/weak-password': 'A senha precisa ter no mínimo 6 caracteres.'
+            };
+            return erros[code] || 'Ocorreu um erro. Tente novamente.';
+        }
+
+        function fazerLogin() {
+            const email = document.getElementById('email').value.trim();
+            const senha = document.getElementById('senha').value;
+
+            auth.signInWithEmailAndPassword(email, senha)
+                .then(() => {
+                    window.location.href = 'index.html';
+                })
+                .catch(err => mostrarErro(traduzirErro(err.code)));
+        }
+
+        function fazerCadastro() {
+            const email = document.getElementById('email').value.trim();
+            const senha = document.getElementById('senha').value;
+
+            auth.createUserWithEmailAndPassword(email, senha)
+                .then(() => {
+                    window.location.href = 'index.html';
+                })
+                .catch(err => mostrarErro(traduzirErro(err.code)));
+        }
+
+        // Se já estiver logado, manda direto pro app
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                window.location.href = 'index.html';
+            }
+        });
+    </script>
+</body>
+</html>
