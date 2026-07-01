@@ -8,6 +8,8 @@ let docRef = null;
 let currentChartDays = 7; 
 let timerInterval = null;
 let timerSeconds = 0;
+let timerStartTime = 0;
+let timerAccumulated = 0;
 
 // ================= GESTÃO DE TEMA E CORES =================
 function aplicarTemaInicial() {
@@ -170,14 +172,22 @@ function startTimer() {
     document.getElementById('timerSubject').disabled = true;
     document.getElementById('timerTopic').disabled = true;
 
+    // Registra o momento exato em que o play foi dado
+    timerStartTime = Date.now();
+
     timerInterval = setInterval(() => {
-        timerSeconds++;
+        // Calcula a diferença real de tempo percorrido
+        const now = Date.now();
+        const diffSeconds = Math.floor((now - timerStartTime) / 1000);
+        timerSeconds = timerAccumulated + diffSeconds;
+        
         document.getElementById('timerDisplay').innerText = formatTime(timerSeconds);
     }, 1000);
 }
 
 function pauseTimer() {
     clearInterval(timerInterval);
+    timerAccumulated = timerSeconds; // Guarda o que já passou
     document.getElementById('btnStartTimer').style.display = 'inline-block';
     document.getElementById('btnStartTimer').innerText = '▶ Retomar';
     document.getElementById('btnPauseTimer').style.display = 'none';
@@ -229,6 +239,8 @@ function stopAndSaveTimer() {
 
 function resetTimerUI() {
     timerSeconds = 0;
+    timerAccumulated = 0;
+    timerStartTime = 0;
     document.getElementById('timerDisplay').innerText = "00:00:00";
     document.getElementById('btnStartTimer').style.display = 'inline-block';
     document.getElementById('btnStartTimer').innerText = '▶ Iniciar';
@@ -386,7 +398,7 @@ function renderProgressoTab() {
 
         html += `
                     </tbody>
-                    <tfoot>
+                    tfoot
                         <tr>
                             <td style="text-align: right;">TOTAL GERAL (F1 + Revisões):</td>
                             <td colspan="3" style="font-weight: 800; text-align: center;">${subjTotalA} Acertos de ${subjTotalQ} Questões</td>
@@ -621,28 +633,37 @@ function updateUI() {
 }
 
 function renderDashboard() {
-    const tbody = document.getElementById('progressTableBody');
-    if (!tbody) return;
-    tbody.innerHTML = "";
-    
-    // O BUG DO ZERO RESOLVIDO AQUI: Soma as horas do calendário perfeitamente.
+    // Calcula o total global de horas diretamente do histórico
     let globalHours = studyHistory.reduce((acc, curr) => acc + (parseFloat(curr.hours) || 0), 0);
     let globalTotalQ = 0, globalCorrectQ = 0;
 
+    // Calcula o total de questões e acertos usando a função que já consolida as revisões
     studyData.forEach(subject => {
         let subjectTotalQ = 0, subjectCorrectQ = 0;
-        subject.topics.forEach(t => { const stats = getTopicStats(t); subjectTotalQ += stats.totalQ; subjectCorrectQ += stats.totalC; });
-        globalTotalQ += subjectTotalQ; globalCorrectQ += subjectCorrectQ;
-        let subjectAcc = calculateAccuracy(subjectCorrectQ, subjectTotalQ);
-        tbody.innerHTML += `<tr><td><strong>${subject.name}</strong></td><td>${parseFloat(subject.hours).toFixed(1).replace('.0','')}h</td><td>${subjectTotalQ} feitas / <span class="text-success">${subjectCorrectQ} certas</span></td><td><span class="badge ${getBadgeClass(subjectAcc)}">${subjectAcc}%</span></td></tr>`;
+        subject.topics.forEach(t => { 
+            const stats = getTopicStats(t); 
+            subjectTotalQ += stats.totalQ; 
+            subjectCorrectQ += stats.totalC; 
+        });
+        globalTotalQ += subjectTotalQ; 
+        globalCorrectQ += subjectCorrectQ;
     });
     
+    // Formatação limpa das horas (tira o .0 se for exato)
     const hStr = (globalHours % 1 === 0) ? globalHours : globalHours.toFixed(1);
     
-    document.getElementById('totalHours').innerText = `${hStr}h`;
-    document.getElementById('totalQuestions').innerText = globalTotalQ;
-    document.getElementById('totalCorrect').innerText = globalCorrectQ;
-    document.getElementById('overallAccuracy').innerText = `${calculateAccuracy(globalCorrectQ, globalTotalQ)}%`;
+    // Atualiza os Cards principais com verificações de segurança
+    const elTotalHours = document.getElementById('totalHours');
+    if(elTotalHours) elTotalHours.innerText = `${hStr}h`;
+    
+    const elTotalQuestions = document.getElementById('totalQuestions');
+    if(elTotalQuestions) elTotalQuestions.innerText = globalTotalQ;
+    
+    const elTotalCorrect = document.getElementById('totalCorrect');
+    if(elTotalCorrect) elTotalCorrect.innerText = globalCorrectQ;
+    
+    const elOverallAccuracy = document.getElementById('overallAccuracy');
+    if(elOverallAccuracy) elOverallAccuracy.innerText = `${calculateAccuracy(globalCorrectQ, globalTotalQ)}%`;
 }
 
 function renderPerfil() {
