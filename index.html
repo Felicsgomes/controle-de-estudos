@@ -6,34 +6,36 @@
     <title>Meu Controle de Estudos</title>
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Fonte Nunito Definida -->
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="firebase-config.js"></script>
-    <script src="theme.js"></script>
 </head>
 <body>
 
     <div class="theme-controls">
-        <button id="themeToggleBtn" class="theme-toggle-btn" onclick="alternarTema()">🌙</button>
-        <input type="color" id="accentColorPicker" value="#29c5ff" onchange="mudarCorDestaque(this.value)" title="Escolher cor de destaque">
+        <button id="themeToggleBtn" class="theme-toggle-btn" onclick="alternarTema()" title="Modo Claro/Escuro">🌙</button>
     </div>
 
     <aside class="sidebar">
         <div class="sidebar-header">Área do Concurseiro</div>
         <ul class="menu" id="menuList">
             <li class="active" onclick="showTab('dashboard', this)">Total / Visão Geral</li>
+            <li onclick="showTab('progressoTab', this)">📊 Planilha (Revisões)</li>
             <li onclick="showTab('perfil', this)">Perfil / Estatísticas</li>
             <li onclick="showTab('edital', this)">Meu Edital / Matérias</li>
-            <li onclick="showTab('registrar', this)">Registrar Estudo</li>
-            <li onclick="logout()" style="color: #ff8a9b;">Sair</li>
+            <li onclick="showTab('registrar', this)">Registrar & Cronômetro</li>
+            <li onclick="showTab('personalizar', this)">🎨 Personalizar</li>
+            <li onclick="logout()" style="color: var(--danger); margin-top: 15px;">Sair da Conta</li>
         </ul>
     </aside>
 
     <main class="content">
 
+        <!-- ABA: DASHBOARD / TOTAL -->
         <section id="dashboard" class="section active">
             <h1>Visão Geral dos Estudos</h1>
             <div class="grid-cards">
@@ -61,111 +63,210 @@
                     <h2 id="calendarMonthYear" style="margin-bottom: 0;">Mês Ano</h2>
                     <button class="btn-nav" onclick="changeMonth(1)">Próximo &#10095;</button>
                 </div>
-
                 <div class="heatmap-legend">
                     <span>Menos</span>
-                    <div class="legend-box heat-0"></div>
-                    <div class="legend-box heat-1"></div>
-                    <div class="legend-box heat-2"></div>
-                    <div class="legend-box heat-3"></div>
-                    <div class="legend-box heat-4"></div>
-                    <span>Mais Horas</span>
+                    <div class="legend-box heat-0"></div><div class="legend-box heat-1"></div>
+                    <div class="legend-box heat-2"></div><div class="legend-box heat-3"></div>
+                    <div class="legend-box heat-4"></div><span>Mais Horas</span>
                 </div>
-
-                <div class="calendar-grid" id="calendarGrid">
-                    </div>
+                <div class="calendar-grid" id="calendarGrid"></div>
             </div>
 
-            <h2>Ritmo de Estudo (Últimos 7 dias)</h2>
-            <div class="subject-box" style="height: 300px; margin-bottom: 30px;">
-                <canvas id="studyChart"></canvas>
+            <h2>Ritmo de Estudo (Histórico Geral)</h2>
+            <div class="subject-box" style="margin-bottom: 30px;">
+                <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+                    <button class="btn-warn" onclick="setChartDays(7)">7 Dias</button>
+                    <button class="btn-warn" onclick="setChartDays(15)">15 Dias</button>
+                    <button class="btn-warn" onclick="setChartDays(30)">30 Dias</button>
+                    <button class="btn-warn" onclick="setChartDays(60)">60 Dias</button>
+                    <button class="btn-warn" onclick="setChartDays(90)">90 Dias</button>
+                </div>
+                <div style="height: 400px;">
+                    <canvas id="studyChart"></canvas>
+                </div>
             </div>
-
-            <h2>Desempenho Geral por Matéria</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Matéria</th>
-                        <th>Horas</th>
-                        <th>Questões (Feitas / Acertos)</th>
-                        <th>Aproveitamento (%)</th>
-                    </tr>
-                </thead>
-                <tbody id="progressTableBody">
-                    </tbody>
-            </table>
         </section>
 
+        <!-- ABA: PLANILHA DE PROGRESSO -->
+        <section id="progressoTab" class="section">
+            <h1>Planilha de Revisões e Questões</h1>
+            <p style="color: var(--text-muted); margin-bottom: 24px; margin-top: -10px;">
+                Controle seus acertos na Fase 1 e adicione colunas para suas revisões (R1, R2, etc.).
+            </p>
+            <div id="progressoContainer"></div>
+        </section>
+
+        <!-- ABA: PERFIL / ESTATÍSTICAS DETALHADAS -->
         <section id="perfil" class="section">
             <h1>Meu Perfil e Desempenho Detalhado</h1>
-            <div class="grid-cards" style="margin-bottom: 20px;">
-                <div class="card">
-                    <h3>Edital Concluído</h3>
-                    <div class="value" id="profilePercentageDone">0%</div>
+            <div class="subject-box profile-header-box">
+                <div class="profile-photo-wrap">
+                    <img id="profilePhotoImg" class="profile-photo" src="" alt="Foto" style="display:none;">
+                    <label for="profilePhotoInput" class="profile-photo-edit" title="Alterar foto">✎</label>
+                    <input type="file" id="profilePhotoInput" accept="image/*" style="display:none;" onchange="handlePhotoUpload(this)">
+                </div>
+                <div class="profile-header-info">
+                    <h2 style="margin-bottom: 4px;">Resumo Geral</h2>
+                    <p style="color: var(--text-muted);">Progresso completo (Fase 1 + Todas as Revisões).</p>
                 </div>
             </div>
+
             <div class="subject-box">
                 <h2>Filtro de Desempenho (Matéria > Assunto)</h2>
                 <div id="detailedProfileStats"></div>
             </div>
+
+            <!-- CORREÇÃO DO CALENDÁRIO -->
+            <div class="subject-box">
+                <h2>📅 Corrigir horas do Calendário/Gráfico</h2>
+                <div style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
+                    <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 140px;">
+                        <label for="editHistoryDate">1. Escolha o Dia</label>
+                        <input type="date" id="editHistoryDate" onchange="loadHistoryDay()">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 140px;">
+                        <label for="editHistoryHours">2. Total de Horas no dia</label>
+                        <input type="number" id="editHistoryHours" step="0.5" min="0" placeholder="Ex: 0 para apagar">
+                    </div>
+                    <button onclick="saveHistoryDay()" style="height: 44px; flex-shrink: 0;">Atualizar Dia</button>
+                </div>
+            </div>
         </section>
 
+        <!-- ABA: MEU EDITAL -->
         <section id="edital" class="section">
             <h1>Gerenciar Edital</h1>
             <div class="subject-box">
                 <h2>1. Adicionar Nova Matéria</h2>
                 <div class="form-group">
-                    <input type="text" id="newSubjectName" placeholder="Ex: Banco de Dados, Português, SQL..." onkeypress="if(event.key === 'Enter') addSubject()">
+                    <input type="text" id="newSubjectName" placeholder="Ex: Conhecimentos Bancários..." onkeypress="if(event.key === 'Enter') addSubject()">
                 </div>
                 <button onclick="addSubject()">Adicionar Matéria</button>
             </div>
             <div class="subject-box">
-                <h2>2. Estrutura do Edital (Matérias e Assuntos)</h2>
+                <h2>2. Estrutura do Edital</h2>
                 <div id="editalStructure"></div>
             </div>
         </section>
 
+        <!-- ABA: REGISTRAR DIA / HORAS -->
         <section id="registrar" class="section">
             <h1>Registrar Sessão de Estudo</h1>
-            <div class="subject-box">
+            
+            <div class="subject-box" style="border-left: 4px solid var(--warning);">
+                <h2 style="color: var(--warning);">⏱️ Cronômetro Inteligente</h2>
+                <p style="color: var(--text-muted); margin-bottom: 15px; margin-top: -10px;">Estude com a tela aberta. Ao finalizar, o tempo é convertido e salvo automaticamente na matéria.</p>
+                <div style="display: flex; gap: 15px; margin-bottom: 15px;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>1. Matéria para o Cronômetro</label>
+                        <select id="timerSubject" onchange="updateTimerTopicSelect()"><option value="">Selecione...</option></select>
+                    </div>
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>2. Assunto</label>
+                        <select id="timerTopic"><option value="">Selecione...</option></select>
+                    </div>
+                </div>
+                <div style="text-align: center; margin: 25px 0;">
+                    <div id="timerDisplay" style="font-size: 3.5rem; font-weight: 800; font-family: 'Nunito', monospace; color: var(--text-main);">00:00:00</div>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <button class="btn-success" id="btnStartTimer" onclick="startTimer()" style="font-size: 1.1rem; padding: 10px 30px;">▶ Iniciar</button>
+                    <button class="btn-warn" id="btnPauseTimer" onclick="pauseTimer()" style="display:none; font-size: 1.1rem; padding: 10px 30px;">⏸ Pausar</button>
+                    <button class="btn-del" id="btnStopTimer" onclick="stopAndSaveTimer()" style="display:none; font-size: 1.1rem; padding: 10px 30px;">⏹ Finalizar e Salvar</button>
+                </div>
+            </div>
 
+            <div class="subject-box">
+                <h2>📝 Lançamento Manual de Horas</h2>
                 <div class="form-group">
                     <label for="studyDate">1. Data do Estudo</label>
                     <input type="date" id="studyDate">
                 </div>
-
                 <div class="form-group">
                     <label for="selectSubject">2. Selecione a Matéria</label>
-                    <select id="selectSubject" onchange="updateTopicSelect()">
-                        <option value="">-- Escolha a matéria primeiro --</option>
-                    </select>
+                    <select id="selectSubject" onchange="updateTopicSelect()"><option value="">-- Escolha a matéria primeiro --</option></select>
                 </div>
                 <div class="form-group">
                     <label for="selectTopic">3. Selecione o Assunto / Tópico</label>
-                    <select id="selectTopic">
-                        <option value="">-- Escolha o assunto --</option>
-                    </select>
+                    <select id="selectTopic" onchange="handleTopicChange()"><option value="">-- Escolha o assunto --</option></select>
                 </div>
                 <div class="form-group">
                     <label for="studyHours">4. Tempo Estudado (em horas)</label>
                     <input type="number" id="studyHours" step="0.5" min="0" placeholder="Ex: 1.5 para 1h30min" onkeypress="if(event.key === 'Enter') registerStudy()">
                 </div>
-                <div style="display: flex; gap: 15px;">
-                    <div class="form-group" style="flex: 1;">
-                        <label for="studyQuestions">Questões Resolvidas (Total)</label>
-                        <input type="number" id="studyQuestions" min="0" placeholder="Total de questões" onkeypress="if(event.key === 'Enter') registerStudy()">
-                    </div>
-                    <div class="form-group" style="flex: 1;">
-                        <label for="correctQuestions">Questões Acertadas</label>
-                        <input type="number" id="correctQuestions" min="0" placeholder="Quantas você acertou?" onkeypress="if(event.key === 'Enter') registerStudy()">
+                <div class="form-group" id="topicStatusGroup" style="display:none;">
+                    <label>5. Você finalizou esse tópico?</label>
+                    <div class="toggle-pill-group">
+                        <button type="button" class="toggle-pill" id="btnStatusSim" onclick="setTopicStatus(true)">✅ Sim</button>
+                        <button type="button" class="toggle-pill" id="btnStatusNao" onclick="setTopicStatus(false)">📌 Ainda não</button>
                     </div>
                 </div>
-                <button onclick="registerStudy()">Salvar Registro de Estudo</button>
+                <div class="form-group" id="progressGroup" style="display:none;">
+                    <label for="topicProgress">Qual foi seu progresso hoje?</label>
+                    <input type="text" id="topicProgress" placeholder="Ex: Página 5, PDF 4" onkeypress="if(event.key === 'Enter') registerStudy()">
+                </div>
+                <button onclick="registerStudy()">Salvar Registro Manual</button>
+            </div>
+
+            <h2 style="margin-top: 34px;">Histórico (Diário)</h2>
+            <div class="subject-box">
+                <div class="diario-table-wrap" id="registrarLogWrap">
+                    <table class="diario-table">
+                        <thead><tr><th>Data</th><th>Matéria</th><th>Tópico</th><th>Horas</th><th>Status / Progresso</th><th></th></tr></thead>
+                        <tbody id="registrarLogBody"></tbody>
+                    </table>
+                </div>
             </div>
         </section>
 
-    </main>
+        <!-- NOVA ABA: PERSONALIZAR -->
+        <section id="personalizar" class="section">
+            <h1>Personalizar Aparência</h1>
+            <p style="color: var(--text-muted); margin-bottom: 24px; margin-top: -10px;">
+                Deixe o sistema com a sua cara. Tamanho das fontes, botões e cores exatas.
+            </p>
 
+            <div class="subject-box">
+                <h2>🎨 Cores Base do Sistema</h2>
+                <div class="grid-cards" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+                    <div class="form-group"><label>Destaque Global (Gráficos)</label><input type="color" id="colorAccent" onchange="mudarVariavel('--accent', this.value, 'colorAccent')" style="height: 44px; padding: 2px;"></div>
+                    <div class="form-group"><label>Fundo da Página</label><input type="color" id="colorBg" onchange="mudarVariavel('--bg-color', this.value, 'colorBg')" style="height: 44px; padding: 2px;"></div>
+                    <div class="form-group"><label>Fundo dos Cards</label><input type="color" id="colorCard" onchange="mudarVariavel('--card-bg', this.value, 'colorCard')" style="height: 44px; padding: 2px;"></div>
+                    <div class="form-group"><label>Texto Principal</label><input type="color" id="colorText" onchange="mudarVariavel('--text-main', this.value, 'colorText')" style="height: 44px; padding: 2px;"></div>
+                </div>
+            </div>
+
+            <div class="subject-box">
+                <h2>🔘 Cores dos Botões e Alertas</h2>
+                <div class="grid-cards" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+                    <div class="form-group"><label>Fundo (Botão Principal)</label><input type="color" id="colorBtnBg" onchange="mudarVariavel('--btn-primary-bg', this.value, 'colorBtnBg')" style="height: 44px; padding: 2px;"></div>
+                    <div class="form-group"><label>Texto (Botão Principal)</label><input type="color" id="colorBtnText" onchange="mudarVariavel('--btn-primary-text', this.value, 'colorBtnText')" style="height: 44px; padding: 2px;"></div>
+                    <div class="form-group"><label>Sucesso (100% Acertos)</label><input type="color" id="colorSuccess" onchange="mudarVariavel('--success', this.value, 'colorSuccess')" style="height: 44px; padding: 2px;"></div>
+                    <div class="form-group"><label>Alerta (Revisar/Pausar)</label><input type="color" id="colorWarning" onchange="mudarVariavel('--warning', this.value, 'colorWarning')" style="height: 44px; padding: 2px;"></div>
+                    <div class="form-group"><label>Erro (Deletar/Baixo Acerto)</label><input type="color" id="colorDanger" onchange="mudarVariavel('--danger', this.value, 'colorDanger')" style="height: 44px; padding: 2px;"></div>
+                </div>
+            </div>
+
+            <div class="subject-box">
+                <h2>🔤 Tipografia e Layout</h2>
+                <div class="grid-cards" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+                    <div class="form-group">
+                        <label>Tamanho da Fonte (Zoom Global)</label>
+                        <input type="range" id="fontSizeSlider" min="12" max="24" value="16" oninput="mudarVariavel('--base-font-size', this.value, 'fontSizeSlider', 'px'); document.getElementById('fontSizeVal').innerText = this.value + 'px';">
+                        <div style="text-align:center; font-weight:800; margin-top:5px; color: var(--accent);" id="fontSizeVal">16px</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Arredondamento das Bordas</label>
+                        <input type="range" id="borderRadiusSlider" min="0" max="30" value="16" oninput="mudarVariavel('--radius-lg', this.value, 'borderRadiusSlider', 'px'); mudarVariavel('--radius-md', Math.max(0, this.value - 6), 'dummy', 'px'); document.getElementById('radiusVal').innerText = this.value + 'px';">
+                        <div style="text-align:center; font-weight:800; margin-top:5px; color: var(--accent);" id="radiusVal">16px</div>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn-del" onclick="resetarPersonalizacao()" style="width: 100%; padding: 15px; font-size: 1.1rem; margin-top: 10px;">🔄 Restaurar Padrões de Fábrica</button>
+        </section>
+
+    </main>
     <script src="script.js" defer></script>
 </body>
 </html>
