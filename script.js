@@ -172,11 +172,9 @@ function startTimer() {
     document.getElementById('timerSubject').disabled = true;
     document.getElementById('timerTopic').disabled = true;
 
-    // Registra o momento exato em que o play foi dado
     timerStartTime = Date.now();
 
     timerInterval = setInterval(() => {
-        // Calcula a diferença real de tempo percorrido
         const now = Date.now();
         const diffSeconds = Math.floor((now - timerStartTime) / 1000);
         timerSeconds = timerAccumulated + diffSeconds;
@@ -187,7 +185,7 @@ function startTimer() {
 
 function pauseTimer() {
     clearInterval(timerInterval);
-    timerAccumulated = timerSeconds; // Guarda o que já passou
+    timerAccumulated = timerSeconds;
     document.getElementById('btnStartTimer').style.display = 'inline-block';
     document.getElementById('btnStartTimer').innerText = '▶ Retomar';
     document.getElementById('btnPauseTimer').style.display = 'none';
@@ -256,7 +254,8 @@ function addRevisionColumn(subjectId) {
     if (subject) {
         subject.topics.forEach(t => {
             if (!t.revisions) t.revisions = [];
-            t.revisions.push({ qTotal: 0, qCorrect: 0 });
+            // Agora adiciona apenas acertos na revisão
+            t.revisions.push({ qCorrect: 0 });
         });
         saveData();
     }
@@ -285,28 +284,22 @@ function updateProgresso(subjectId, topicId, revIndex, field, value) {
     const topic = subject.topics.find(t => t.id === topicId);
     if (!topic) return;
 
-    // Impede o input de gerar números negativos caso cole sujeira
     let val = Math.max(0, parseInt(value) || 0);
 
     if (revIndex === -1) {
         topic[field] = val;
     } else {
         if (!topic.revisions) topic.revisions = [];
-        if (!topic.revisions[revIndex]) topic.revisions[revIndex] = { qTotal: 0, qCorrect: 0 };
+        if (!topic.revisions[revIndex]) topic.revisions[revIndex] = { qCorrect: 0 };
         topic.revisions[revIndex][field] = val;
     }
 
+    // Regras de validação (somente para Fase 1, já que revisões não tem mais qTotal individual)
     if (field === 'qTotal') {
         if (revIndex === -1 && topic.qCorrect > topic.qTotal) topic.qCorrect = topic.qTotal;
-        if (revIndex >= 0 && topic.revisions[revIndex].qCorrect > topic.revisions[revIndex].qTotal) {
-            topic.revisions[revIndex].qCorrect = topic.revisions[revIndex].qTotal;
-        }
     }
     if (field === 'qCorrect') {
         if (revIndex === -1 && topic.qCorrect > topic.qTotal) topic.qTotal = topic.qCorrect;
-        if (revIndex >= 0 && topic.revisions[revIndex].qCorrect > topic.revisions[revIndex].qTotal) {
-            topic.revisions[revIndex].qTotal = topic.revisions[revIndex].qCorrect;
-        }
     }
     saveData();
 }
@@ -327,7 +320,8 @@ function renderProgressoTab() {
 
         let revHeaders = "";
         for (let i = 0; i < maxRev; i++) {
-            revHeaders += `<th>R${i+1} <br><small style="font-weight:normal; opacity:0.7;">(A / Q)</small></th>`;
+            // Cabeçalho da revisão agora mostra apenas (Acertos)
+            revHeaders += `<th>R${i+1} <br><small style="font-weight:normal; opacity:0.7;">(Acertos)</small></th>`;
         }
 
         let html = `
@@ -350,7 +344,7 @@ function renderProgressoTab() {
                         <tr>
                             <th>Tópico</th>
                             <th>Acertos</th>
-                            <th>Questões</th>
+                            <th>Questões (Total)</th>
                             <th>%</th>
                             ${revHeaders}
                         </tr>
@@ -362,22 +356,23 @@ function renderProgressoTab() {
 
         subject.topics.forEach(t => {
             if (!t.revisions) t.revisions = [];
-            while (t.revisions.length < maxRev) t.revisions.push({ qTotal: 0, qCorrect: 0 });
+            while (t.revisions.length < maxRev) t.revisions.push({ qCorrect: 0 });
 
-            let tTotalQ = t.qTotal || 0, tTotalA = t.qCorrect || 0;
+            // tTotalQ puxa exclusivamente da coluna de Questões da Fase 1 (que é onde vc vai somar)
+            let tTotalQ = parseInt(t.qTotal) || 0;
+            // tTotalA começa com os acertos da fase 1 e soma com as revisões
+            let tTotalA = parseInt(t.qCorrect) || 0;
+            
             let f1Perc = calculateAccuracy(t.qCorrect, t.qTotal);
             let f1Color = f1Perc >= 80 ? 'var(--success)' : f1Perc >= 60 ? 'var(--warning)' : 'var(--danger)';
             
             let revCells = "";
             t.revisions.forEach((rev, idx) => {
-                tTotalQ += rev.qTotal || 0; tTotalA += rev.qCorrect || 0;
+                tTotalA += parseInt(rev.qCorrect) || 0;
+                // Células da revisão agora têm apenas o input de Acertos
                 revCells += `
-                <td>
-                    <div class="excel-cell-group">
-                        <input type="number" min="0" class="excel-input" value="${rev.qCorrect || ''}" onchange="updateProgresso('${subject.id}', '${t.id}', ${idx}, 'qCorrect', this.value)" placeholder="A">
-                        /
-                        <input type="number" min="0" class="excel-input" value="${rev.qTotal || ''}" onchange="updateProgresso('${subject.id}', '${t.id}', ${idx}, 'qTotal', this.value)" placeholder="Q">
-                    </div>
+                <td style="text-align: center;">
+                    <input type="number" min="0" class="excel-input" value="${rev.qCorrect || ''}" onchange="updateProgresso('${subject.id}', '${t.id}', ${idx}, 'qCorrect', this.value)" placeholder="A">
                 </td>`;
             });
 
@@ -398,7 +393,7 @@ function renderProgressoTab() {
 
         html += `
                     </tbody>
-                    tfoot
+                    <tfoot>
                         <tr>
                             <td style="text-align: right;">TOTAL GERAL (F1 + Revisões):</td>
                             <td colspan="3" style="font-weight: 800; text-align: center;">${subjTotalA} Acertos de ${subjTotalQ} Questões</td>
@@ -413,9 +408,14 @@ function renderProgressoTab() {
 }
 
 function getTopicStats(topic) {
-    let totalQ = topic.qTotal || 0, totalC = topic.qCorrect || 0;
+    // Para as estatísticas gerais do perfil e painel
+    // totalQ usa apenas a Fase 1 (onde você digita o consolidado)
+    let totalQ = parseInt(topic.qTotal) || 0;
+    // totalC soma a Fase 1 com todos os acertos avulsos das revisões
+    let totalC = parseInt(topic.qCorrect) || 0;
+    
     if (topic.revisions) {
-        topic.revisions.forEach(r => { totalQ += (r.qTotal || 0); totalC += (r.qCorrect || 0); });
+        topic.revisions.forEach(r => { totalC += (parseInt(r.qCorrect) || 0); });
     }
     return { totalQ, totalC };
 }
@@ -633,11 +633,9 @@ function updateUI() {
 }
 
 function renderDashboard() {
-    // Calcula o total global de horas diretamente do histórico
     let globalHours = studyHistory.reduce((acc, curr) => acc + (parseFloat(curr.hours) || 0), 0);
     let globalTotalQ = 0, globalCorrectQ = 0;
 
-    // Calcula o total de questões e acertos usando a função que já consolida as revisões
     studyData.forEach(subject => {
         let subjectTotalQ = 0, subjectCorrectQ = 0;
         subject.topics.forEach(t => { 
@@ -649,10 +647,8 @@ function renderDashboard() {
         globalCorrectQ += subjectCorrectQ;
     });
     
-    // Formatação limpa das horas (tira o .0 se for exato)
     const hStr = (globalHours % 1 === 0) ? globalHours : globalHours.toFixed(1);
     
-    // Atualiza os Cards principais com verificações de segurança
     const elTotalHours = document.getElementById('totalHours');
     if(elTotalHours) elTotalHours.innerText = `${hStr}h`;
     
